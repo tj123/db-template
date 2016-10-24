@@ -1,5 +1,7 @@
 package com.github.tj123.db;
 
+import com.github.tj123.bean.Po;
+
 /**
  * Created by TJ on 2016/10/20.
  */

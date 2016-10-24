@@ -1,5 +1,7 @@
 package com.github.tj123.db;
 
+import com.github.tj123.bean.Dto;
+import com.github.tj123.bean.Po;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -109,15 +111,11 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * update insert 存在更新
 	 * <p>不存在 插入
 	 */
-	public void upsert(Dto dto) throws Exception {
-		upsert(dto.toPo());
-	}
-	
-	public void upsert(Po po) throws Exception {
-		upsert(po, "guid");
-	}
-	
 	public void upsert(Dto dto, String keys) throws Exception {
+		upsert(dto.toPo(), keys);
+	}
+	
+	public void upsert(Dto dto, String... keys) throws Exception {
 		upsert(dto.toPo(), keys);
 	}
 	
