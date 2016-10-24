@@ -2,6 +2,7 @@ package com.github.tj123.db;
 
 import com.github.tj123.bean.Dto;
 import com.github.tj123.bean.Po;
+import com.github.tj123.db.exception.DBException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,6 +33,22 @@ public abstract class DBTemplate extends JdbcTemplate {
 	}
 	
 	/**
+	 * 获取主键 field
+	 *
+	 * @param clazz
+	 * @return
+	 */
+	private Field getPrimaryKeyField(Class<? extends Po> clazz) {
+		Field[] fields = clazz.getDeclaredFields();
+		for (Field field : fields) {
+			if (field.getAnnotation(PrimaryKey.class) != null) {
+				return field;
+			}
+		}
+		return null;
+	}
+	
+	/**
 	 * 默认使用自己生成
 	 *
 	 * @param po
@@ -45,14 +62,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 			log.debug("@Table 没有找到！", new Exception("@Table 没有找到！"));
 			return "";
 		}
-		Field field = null;
-		Field[] fields = poClass.getDeclaredFields();
-		for (Field fd : fields) {
-			if (fd.getAnnotation(PrimaryKey.class) != null) {
-				field = fd;
-				break;
-			}
-		}
+		Field field = getPrimaryKeyField(poClass);
 		if (field == null) {
 			log.debug("@PrimaryKey 没有找到！", new Exception("@PrimaryKey 没有找到！"));
 			return "";
@@ -61,36 +71,59 @@ public abstract class DBTemplate extends JdbcTemplate {
 		String primaryKey = String.valueOf(field.get(po));
 		if (primaryKey == null || primaryKey.trim().equals("") || "null".equals(primaryKey)) {
 			return String.valueOf(new SimpleJdbcInsert(getDataSource()).withTableName(table.value())
-					.usingGeneratedKeyColumns(field.getName()).executeAndReturnKeyHolder(po.toMap()).getKey());
+					.usingGeneratedKeyColumns(field.getName()).executeAndReturnKeyHolder(DBUtil.poToMap(po, false)).getKey());
 		}
-		new SimpleJdbcInsert(getDataSource()).withTableName(table.value()).execute(po.toMap());
+		new SimpleJdbcInsert(getDataSource()).withTableName(table.value()).execute(DBUtil.poToMap(po, false));
 		return primaryKey;
 	}
 	
-	public void update(Dto dto, String... columns) throws Exception {
-		update(dto.toPo(), columns);
+	/**
+	 * 默认依据主键修改
+	 *
+	 * @param dto
+	 * @return
+	 * @throws Exception
+	 */
+	public int update(Dto dto) throws Exception {
+		return update(dto, null);
 	}
 	
-	public void update(Po po, String... columns) throws Exception {
+	public int update(Dto dto, String... columns) throws Exception {
+		return update(dto.toPo(), columns);
+	}
+	
+	/**
+	 * 默认依据主键修改
+	 *
+	 * @param po
+	 * @return
+	 * @throws Exception
+	 */
+	public int update(Po po) throws Exception {
+		return update(po, null);
+	}
+	
+	/**
+	 * 必须保证 po 列 columns 中的值不为 null！
+	 *
+	 * @param po
+	 * @param columns
+	 * @return
+	 * @throws Exception
+	 */
+	public int update(Po po, String... columns) throws Exception {
 		Class<? extends Po> poClass = po.getClass();
 		Table table = poClass.getAnnotation(Table.class);
 		if (table == null) {
 			log.debug("@Table 没有找到！", new Exception("@Table 没有找到！"));
-			return;
+			return 0;
 		}
-		Map<String, Object> map = po.toMap();
+		Map<String, Object> map = DBUtil.poToMap(po);
 		if (columns == null) {
-			Field field = null;
-			Field[] fields = poClass.getDeclaredFields();
-			for (Field fd : fields) {
-				if (fd.getAnnotation(PrimaryKey.class) != null) {
-					field = fd;
-					break;
-				}
-			}
+			Field field = getPrimaryKeyField(poClass);
 			if (field == null) {
 				log.debug("@PrimaryKey 没有找到！", new Exception("@PrimaryKey 没有找到！"));
-				return;
+				return 0;
 			}
 			String primaryKey = field.getName();
 			Column column = field.getAnnotation(Column.class);
@@ -102,10 +135,18 @@ public abstract class DBTemplate extends JdbcTemplate {
 		Map<String, Object> where = new HashMap<>();
 		for (String column : columns) {
 			Object value = map.get(column);
+			if (value == null) {
+				log.debug("列" + column + "值为空！", new Exception("列" + column + "值为空！"));
+				return 0;
+			}
 			where.put(column, value);
 			map.remove(column);
 		}
+		Sql sql = genUpdateSql(table.value(), map, where);
+		return update(sql.getSql(), sql.getData());
 	}
+	
+	abstract Sql genUpdateSql(String table, Map<String, Object> data, Map<String, Object> where) throws Exception;
 	
 	/**
 	 * update insert 存在更新
@@ -121,5 +162,20 @@ public abstract class DBTemplate extends JdbcTemplate {
 	
 	public abstract void upsert(Po po, String... keys) throws Exception;
 	
-	public abstract PageResult findPage(String sql, Page page, Object... params) throws Exception;
+	public PageResult findPage(String sql, Page page, Object... params) throws Exception {
+		PageResult result = new PageResult();
+		long start = System.currentTimeMillis();
+		if (page.getSize() == 0) {
+			throw new DBException("size 不能为 0！");
+		}
+		page.setTotalRecords(queryForObject(new StringBuffer().append("select count(1) from (").append(sql)
+				.append(") cnt").toString(), Long.class, params));
+		page.calculatePage();
+		Sql sq = genPageSql(sql, page, params);
+		result.setPage(page);
+		result.setRows(queryForList(sq.getSql(), sq.getData()));
+		return result;
+	}
+	
+	abstract Sql genPageSql(String sql, Page page, Object[] params) throws Exception;
 }
