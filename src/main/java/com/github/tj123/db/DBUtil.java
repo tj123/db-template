@@ -61,6 +61,16 @@ public class DBUtil {
 			if (withNull && value == null) {
 				continue;
 			}
+			Class<?> fieldClass = field.getType();
+			if(fieldClass.isEnum()){
+				try{
+					String key = String.valueOf(fieldClass.getMethod("getKey").invoke(value));
+					if (key != null && !key.trim().equals("") && !"null".equals(key)) {
+						value = key;
+					}
+				}catch (Exception e){
+				}
+			}
 			map.put(column != null ? column.value() : field.getName(), value);
 		}
 		return map;
