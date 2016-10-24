@@ -22,14 +22,7 @@ public class MysqlTemplate extends DBTemplate {
 			log.debug("@Table 没有找到！", new Exception("@Table 没有找到！"));
 			return "";
 		}
-		Field field = null;
-		Field[] fields = poClass.getDeclaredFields();
-		for (Field fd : fields) {
-			if (fd.getAnnotation(PrimaryKey.class) != null) {
-				field = fd;
-				break;
-			}
-		}
+		Field field = getPrimaryKeyField(poClass);
 		if (field == null) {
 			log.debug("@PrimaryKey 没有找到！", new Exception("@PrimaryKey 没有找到！"));
 			return "";
@@ -41,6 +34,36 @@ public class MysqlTemplate extends DBTemplate {
 		}
 		new SimpleJdbcInsert(getDataSource()).withTableName(table.value()).execute(DBUtil.poToMap(po, false));
 		return uuid;
+	}
+	
+	/**
+	 * 只对同一张表批量插入
+	 * @param pos
+	 */
+	public <PO extends Po> void save(List<PO> pos) throws Exception {
+		if(pos == null || pos.size() == 0) return;
+		Class<? extends Po> poClass = pos.get(0).getClass();
+		Table table = poClass.getAnnotation(Table.class);
+		if (table == null) {
+			log.debug("@Table 没有找到！", new Exception("@Table 没有找到！"));
+			return;
+		}
+		Field field = getPrimaryKeyField(poClass);
+		if (field == null) {
+			log.debug("@PrimaryKey 没有找到！", new Exception("@PrimaryKey 没有找到！"));
+			return;
+		}
+		field.setAccessible(true);
+		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(table.value());
+		List<Map<String,Object>> list = new ArrayList<>();
+		for (Po po : pos) {
+			String primaryKey = String.valueOf(field.get(po));
+			if (primaryKey == null || primaryKey.trim().equals("") || "null".equals(primaryKey)) {
+				field.set(po,po.getUUID());
+			}
+			list.add(DBUtil.poToMap(po));
+		}
+		simpleJdbcInsert.executeBatch(list.toArray(new HashMap[]{}));
 	}
 	
 	@Override

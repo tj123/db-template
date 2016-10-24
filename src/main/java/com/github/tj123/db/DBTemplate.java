@@ -9,7 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,7 +40,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * @param clazz
 	 * @return
 	 */
-	private Field getPrimaryKeyField(Class<? extends Po> clazz) {
+	protected Field getPrimaryKeyField(Class<? extends Po> clazz) {
 		Field[] fields = clazz.getDeclaredFields();
 		for (Field field : fields) {
 			if (field.getAnnotation(PrimaryKey.class) != null) {
@@ -46,6 +48,11 @@ public abstract class DBTemplate extends JdbcTemplate {
 			}
 		}
 		return null;
+	}
+	
+	protected String getFieldColumn(Field field){
+		Column column = field.getAnnotation(Column.class);
+		return column == null ? field.getName() : column.value();
 	}
 	
 	/**
@@ -69,12 +76,63 @@ public abstract class DBTemplate extends JdbcTemplate {
 		}
 		field.setAccessible(true);
 		String primaryKey = String.valueOf(field.get(po));
+		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(table.value());
 		if (primaryKey == null || primaryKey.trim().equals("") || "null".equals(primaryKey)) {
-			return String.valueOf(new SimpleJdbcInsert(getDataSource()).withTableName(table.value())
-					.usingGeneratedKeyColumns(field.getName()).executeAndReturnKeyHolder(DBUtil.poToMap(po, false)).getKey());
+			return String.valueOf(simpleJdbcInsert.usingGeneratedKeyColumns(getFieldColumn(field))
+					.executeAndReturnKeyHolder(DBUtil.poToMap(po, false)).getKey());
 		}
-		new SimpleJdbcInsert(getDataSource()).withTableName(table.value()).execute(DBUtil.poToMap(po, false));
+		simpleJdbcInsert.execute(DBUtil.poToMap(po, false));
 		return primaryKey;
+	}
+	
+	/**
+	 * 只对同一张表批量插入
+	 * <p/>(无法重载)
+	 * @param dtos
+	 */
+	public <DTO extends Dto> void saveDtos(List<DTO> dtos) throws Exception{
+		List<Po> list = new ArrayList<>();
+		for (DTO dto : dtos) {
+			list.add(dto.toPo());
+		}
+		save(list);
+	}
+	
+	/**
+	 * 只对同一张表批量插入
+	 * @param pos
+	 */
+	public <PO extends Po> void save(List<PO> pos) throws Exception {
+		if(pos == null || pos.size() == 0) return;
+		Class<? extends Po> poClass = pos.get(0).getClass();
+		Table table = poClass.getAnnotation(Table.class);
+		if (table == null) {
+			log.debug("@Table 没有找到！", new Exception("@Table 没有找到！"));
+			return;
+		}
+		Field field = getPrimaryKeyField(poClass);
+		if (field == null) {
+			log.debug("@PrimaryKey 没有找到！", new Exception("@PrimaryKey 没有找到！"));
+			return;
+		}
+		field.setAccessible(true);
+		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(table.value());
+		boolean genKey = false;
+		for (Po po : pos) {
+			String primaryKey = String.valueOf(field.get(po));
+			if (primaryKey == null || primaryKey.trim().equals("") || "null".equals(primaryKey)) {
+				genKey = true;
+				break;
+			}
+		}
+		List<Map<String,Object>> list = new ArrayList<>();
+		for (Po po : pos) {
+			list.add(DBUtil.poToMap(po));
+		}
+		if(genKey){
+			simpleJdbcInsert.usingGeneratedKeyColumns(getFieldColumn(field));
+		}
+		simpleJdbcInsert.executeBatch(list.toArray(new HashMap[]{}));
 	}
 	
 	/**
