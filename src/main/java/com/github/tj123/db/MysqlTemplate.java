@@ -63,7 +63,6 @@ public class MysqlTemplate extends DBTemplate {
                 field.set(po, po.getUUID());
             }
             list.add(DBUtil.poToMap(po));
-            System.out.println(list);
         }
         simpleJdbcInsert.executeBatch(list.toArray(new HashMap[]{}));
     }
@@ -76,8 +75,14 @@ public class MysqlTemplate extends DBTemplate {
         StringBuilder dataSql = new StringBuilder();
         Set<Map.Entry<String, Object>> dataEntries = data.entrySet();
         for (Map.Entry<String, Object> entry : dataEntries) {
-            dataSql.append("`" + entry.getKey() + "` = ?,");
-            list.add(entry.getValue());
+            Object value = entry.getValue();
+            if(value instanceof Date){
+                dataSql.append("`" + entry.getKey() + "` = date_format(?,'%Y-%m-%d %H:%i:%s'),");
+                list.add(Util.dateToString((Date)value,"yyyy-MM-dd HH:mm:ss"));
+            }else {
+                dataSql.append("`" + entry.getKey() + "` = ?,");
+                list.add(value);
+            }
         }
         if (dataEntries.size() > 0) {
             dataSql.deleteCharAt(dataSql.length() - 1);
@@ -85,8 +90,14 @@ public class MysqlTemplate extends DBTemplate {
         Set<Map.Entry<String, Object>> whereEntries = where.entrySet();
         StringBuilder whereSql = new StringBuilder();
         for (Map.Entry<String, Object> entry : whereEntries) {
-            whereSql.append(" `" + entry.getKey() + "` = ? and");
-            list.add(entry.getValue());
+            Object value = entry.getValue();
+            if(value instanceof Date){
+                whereSql.append("`" + entry.getKey() + "` = date_format(?,'%Y-%m-%d %H:%i:%s') and");
+                list.add(Util.dateToString((Date)value,"yyyy-MM-dd HH:mm:ss"));
+            }else {
+                whereSql.append(" `" + entry.getKey() + "` = ? and");
+                list.add(value);
+            }
         }
         if (whereEntries.size() > 0) {
             int length = whereSql.length();

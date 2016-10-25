@@ -1,10 +1,13 @@
 package com.github.tj123.db;
 
+import com.github.tj123.bean.DateConvert;
 import com.github.tj123.bean.Po;
+import com.github.tj123.db.exception.DBException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,11 +60,31 @@ public class DBUtil {
 			}
 			field.setAccessible(true);
 			Column column = field.getAnnotation(Column.class);
+			DefaultCurrent defaultCurrent = field.getAnnotation(DefaultCurrent.class);
+			Class<?> fieldClass = field.getType();
 			Object value = field.get(po);
+			if(defaultCurrent != null && value == null){
+				if (Date.class.equals(fieldClass)) {
+					map.put(column != null ? column.value() : field.getName(), new Date());
+					continue;
+				}else if(Util.isSuperClass(Date.class,fieldClass)){
+					try {
+						DateConvert dateConvert = (DateConvert) fieldClass.newInstance();
+						dateConvert.setDate(new Date());
+						map.put(column != null ? column.value() : field.getName(), dateConvert);
+						continue;
+					}catch (Exception e){
+						throw new DBException("必须实现 DateConvert 接口",e);
+					}
+				}else {
+					if (log.isErrorEnabled()) {
+						log.error("不能识别的字段：" + field);
+					}
+				}
+			}
 			if (withNull && value == null) {
 				continue;
 			}
-			Class<?> fieldClass = field.getType();
 			if(fieldClass.isEnum()){
 				try{
 					String key = String.valueOf(fieldClass.getMethod("getKey").invoke(value));
