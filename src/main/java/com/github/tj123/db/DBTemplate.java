@@ -172,7 +172,6 @@ public abstract class DBTemplate extends JdbcTemplate {
 		Table table = poClass.getAnnotation(Table.class);
 		if (table == null) {
 			throw new DBException("@Table 没有找到！");
-			
 		}
 		Map<String, Object> map = DBUtil.poToMap(po);
 		if (columns == null) {
