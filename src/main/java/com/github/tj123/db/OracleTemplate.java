@@ -39,8 +39,8 @@ public class OracleTemplate extends DBTemplate {
 	}
 	
 	@Override
-	public void upsert(Po po, String... keys) throws Exception {
-		
+	protected int genSelectCountSql(String table, Map<String, Object> where) throws Exception {
+		return 0;
 	}
 	
 	@Override
