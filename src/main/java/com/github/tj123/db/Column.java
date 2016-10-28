@@ -3,7 +3,7 @@ package com.github.tj123.db;
 import java.lang.annotation.*;
 
 /**
- * Created by TJ on 2016/10/20.
+ * 映射到实体表单的列名
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Created by TJ on 2016/10/25.
+ * 本包用的工具类
  */
 class Util {
 	

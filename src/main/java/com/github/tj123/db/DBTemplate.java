@@ -3,6 +3,9 @@ package com.github.tj123.db;
 import com.github.tj123.bean.Dto;
 import com.github.tj123.bean.Po;
 import com.github.tj123.db.exception.DBException;
+import com.github.tj123.db.operate.QueryInfo;
+import com.github.tj123.db.operate.Sql;
+import com.github.tj123.db.operate.WhereEquals;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,8 +17,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 /**
- * Created by TJ on 2016/10/19.
+ * jdbc 重写类
  */
 public abstract class DBTemplate extends JdbcTemplate {
 	
@@ -50,11 +54,6 @@ public abstract class DBTemplate extends JdbcTemplate {
 		return null;
 	}
 	
-	protected String getFieldColumn(Field field) {
-		Column column = field.getAnnotation(Column.class);
-		return column == null ? field.getName() : column.value();
-	}
-	
 	/**
 	 * 默认使用自己生成
 	 *
@@ -63,20 +62,13 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * @throws Exception
 	 */
 	public String save(Po po) throws Exception {
-		Class<? extends Po> poClass = po.getClass();
-		Table table = poClass.getAnnotation(Table.class);
-		if (table == null) {
-			throw new DBException("@Table 没有找到！");
-		}
-		Field field = getPrimaryKeyField(poClass);
-		if (field == null) {
-			throw new DBException("@PrimaryKey 没有找到！");
-		}
+		QueryInfo queryInfo = new QueryInfo(po);
+		Field field = queryInfo.getPrimaryField();
 		field.setAccessible(true);
 		String primaryKey = String.valueOf(field.get(po));
-		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(table.value());
+		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(queryInfo.getTable());
 		if (primaryKey == null || primaryKey.trim().equals("") || "null".equals(primaryKey)) {
-			return String.valueOf(simpleJdbcInsert.usingGeneratedKeyColumns(getFieldColumn(field))
+			return String.valueOf(simpleJdbcInsert.usingGeneratedKeyColumns(queryInfo.getPrimaryKey())
 					.executeAndReturnKeyHolder(DBUtil.poToMap(po, false)).getKey());
 		}
 		simpleJdbcInsert.execute(DBUtil.poToMap(po, false));
@@ -104,17 +96,10 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 */
 	public <PO extends Po> void save(List<PO> pos) throws Exception {
 		if (pos == null || pos.size() == 0) return;
-		Class<? extends Po> poClass = pos.get(0).getClass();
-		Table table = poClass.getAnnotation(Table.class);
-		if (table == null) {
-			throw new DBException("@Table 没有找到！");
-		}
-		Field field = getPrimaryKeyField(poClass);
-		if (field == null) {
-			throw new DBException("@PrimaryKey 没有找到！");
-		}
+		QueryInfo queryInfo = new QueryInfo(pos.get(0));
+		Field field = queryInfo.getPrimaryField();
 		field.setAccessible(true);
-		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(table.value());
+		SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(getDataSource()).withTableName(queryInfo.getTable());
 		boolean genKey = false;
 		for (Po po : pos) {
 			String primaryKey = String.valueOf(field.get(po));
@@ -128,7 +113,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 			list.add(DBUtil.poToMap(po));
 		}
 		if (genKey) {
-			simpleJdbcInsert.usingGeneratedKeyColumns(getFieldColumn(field));
+			simpleJdbcInsert.usingGeneratedKeyColumns(queryInfo.getPrimaryKey());
 		}
 		simpleJdbcInsert.executeBatch(list.toArray(new HashMap[]{}));
 	}
@@ -168,38 +153,18 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * @throws Exception
 	 */
 	public int update(Po po, String... columns) throws Exception {
-		Class<? extends Po> poClass = po.getClass();
-		Table table = poClass.getAnnotation(Table.class);
-		if (table == null) {
-			throw new DBException("@Table 没有找到！");
-		}
-		Map<String, Object> map = DBUtil.poToMap(po);
-		if (columns == null) {
-			Field field = getPrimaryKeyField(poClass);
-			if (field == null) {
-				throw new DBException("@PrimaryKey 没有找到！");
-			}
-			String primaryKey = field.getName();
-			Column column = field.getAnnotation(Column.class);
-			if (column != null) {
-				primaryKey = column.value();
-			}
-			columns = new String[]{primaryKey};
-		}
-		Map<String, Object> where = new HashMap<>();
-		for (String column : columns) {
-			Object value = map.get(column);
-			if (value == null) {
-				throw new DBException("列 " + column + "：值为空！");
-			}
-			where.put(column, value);
-			map.remove(column);
-		}
-		Sql sql = genUpdateSql(table.value(), map, where);
-		return update(sql.getSql(), sql.getData());
+		QueryInfo queryInfo = new QueryInfo(po, columns);
+		Sql sql = genUpdateSql(queryInfo);
+		return update(sql.getSql().toString(), sql.getParams().toArray());
 	}
 	
-	abstract Sql genUpdateSql(String table, Map<String, Object> data, Map<String, Object> where) throws Exception;
+	/**
+	 * 生成 update 语句
+	 * @param queryInfo
+	 * @return
+	 */
+	protected abstract Sql genUpdateSql(QueryInfo queryInfo) throws Exception;
+	
 	
 	/**
 	 * update insert 存在更新
@@ -229,37 +194,15 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * <p>不存在 插入
 	 */
 	public void upsert(Po po, String... keys) throws Exception {
-		Class<? extends Po> poClass = po.getClass();
-		Table table = poClass.getAnnotation(Table.class);
-		if (table == null) {
-			throw new DBException("@Table 没有找到！");
+		QueryInfo queryInfo = new QueryInfo(po, keys);
+		if (findCount(queryInfo.getTable(), queryInfo.getWhereEquals()) > 0) {
+			upsert(po,keys);
+		} else {
+			save(po);
 		}
-		Map<String, Object> map = DBUtil.poToMap(po);
-		if (keys == null) {
-			Field field = getPrimaryKeyField(poClass);
-			if (field == null) {
-				throw new DBException("@PrimaryKey 没有找到！");
-			}
-			String primaryKey = field.getName();
-			Column column = field.getAnnotation(Column.class);
-			if (column != null) {
-				primaryKey = column.value();
-			}
-			keys = new String[]{primaryKey};
-		}
-		Map<String, Object> where = new HashMap<>();
-		for (String column : keys) {
-			Object value = map.get(column);
-			if (value == null) {
-				throw new DBException("列 " + column + "：值为空！");
-			}
-			where.put(column, value);
-			map.remove(column);
-		}
-		int count = genSelectCountSql(table.value(), where);
 	}
 	
-	protected abstract int genSelectCountSql(String table, Map<String, Object> where) throws Exception;
+	protected abstract int findCount(String table, WhereEquals whereEquals) throws Exception;
 	
 	public PageResult findPage(String sql, Page page, Object... params) throws Exception {
 		PageResult result = new PageResult();
@@ -272,7 +215,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 		page.calculatePage();
 		Sql sq = genPageSql(sql, page, params);
 		result.setPage(page);
-		result.setRows(queryForList(sq.getSql(), sq.getData()));
+		result.setRows(queryForList(sq.getSql().toString(), sq.getParams()));
 		return result;
 	}
 	
