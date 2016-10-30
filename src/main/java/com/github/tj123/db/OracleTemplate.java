@@ -1,6 +1,5 @@
 package com.github.tj123.db;
 
-import com.github.tj123.bean.Po;
 import com.github.tj123.db.operate.QueryInfo;
 import com.github.tj123.db.operate.Sql;
 import com.github.tj123.db.operate.UpdateSql;
@@ -32,7 +31,7 @@ public class OracleTemplate extends DBTemplate {
 	Sql genPageSql(String sql, Page page, Object[] params) throws Exception {
 		Sql sq = new Sql();
 		List<Object> list = new ArrayList<>(Arrays.asList(params));
-		sq.setSql(new StringBuilder("select * from (select rSa.*,rownum rn from (").append(sql)
+		sq.setContent(new StringBuilder("select * from (select rSa.*,rownum rn from (").append(sql)
 				.append(") rSa where rn > ? and rn <= ?"));
 		list.add(page.getSize() * (page.getPage() - 1));
 		list.add(page.getSize() * page.getPage());

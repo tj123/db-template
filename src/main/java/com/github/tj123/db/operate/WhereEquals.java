@@ -33,7 +33,7 @@ public class WhereEquals implements DBSql{
             int length = sb.length();
             sb.delete(length - 5, length);
         }
-        sql.setSql(sb);
+        sql.setContent(sb);
         sql.setParams(list);
         return sql;
     }
@@ -57,7 +57,7 @@ public class WhereEquals implements DBSql{
             int length = sb.length();
             sb.delete(length - 5, length);
         }
-        sql.setSql(sb);
+        sql.setContent(sb);
         sql.setParams(list);
         return sql;
     }

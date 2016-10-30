@@ -37,7 +37,7 @@ public class Sets implements DBSql {
 		if (entries.size() > 0) {
 			sb.deleteCharAt(sb.length() - 1);
 		}
-		return sql.setSql(sb).setParams(list);
+		return sql.setContent(sb).setParams(list);
 	}
 	
 	@Override
@@ -56,6 +56,6 @@ public class Sets implements DBSql {
 		if (entries.size() > 0) {
 			sb.deleteCharAt(sb.length() - 1);
 		}
-		return sql.setSql(sb).setParams(list);
+		return sql.setContent(sb).setParams(list);
 	}
 }

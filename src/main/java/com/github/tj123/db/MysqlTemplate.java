@@ -67,7 +67,7 @@ public class MysqlTemplate extends DBTemplate {
 	@Override
 	Sql genPageSql(String sql, Page page, Object[] params) throws Exception {
 		Sql sq = new Sql();
-		sq.setSql(new StringBuilder(sql).append(" limit ?,?"));
+		sq.setContent(new StringBuilder(sql).append(" limit ?,?"));
 		List<Object> list = new ArrayList<>(Arrays.asList(params));
 		list.add((page.getPage() - 1) * page.getSize());
 		list.add(page.getSize());

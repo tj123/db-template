@@ -155,7 +155,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 	public int update(Po po, String... columns) throws Exception {
 		QueryInfo queryInfo = new QueryInfo(po, columns);
 		Sql sql = genUpdateSql(queryInfo);
-		return update(sql.getSql().toString(), sql.getParams().toArray());
+		return update(sql.getContent().toString(), sql.getParams().toArray());
 	}
 	
 	/**
@@ -215,7 +215,7 @@ public abstract class DBTemplate extends JdbcTemplate {
 		page.calculatePage();
 		Sql sq = genPageSql(sql, page, params);
 		result.setPage(page);
-		result.setRows(queryForList(sq.getSql().toString(), sq.getParams()));
+		result.setRows(queryForList(sq.getContent().toString(), sq.getParams()));
 		return result;
 	}
 	
