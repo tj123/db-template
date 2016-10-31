@@ -12,10 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -170,8 +167,8 @@ public abstract class DBTemplate extends JdbcTemplate {
 	 * update insert 存在更新
 	 * <p>不存在 插入
 	 */
-	public void upsert(Dto dto, String keys) throws Exception {
-		upsert(dto.toPo(), keys);
+	public void upsert(Dto dto) throws Exception {
+		upsert(dto.toPo(), null);
 	}
 	
 	/**
@@ -215,7 +212,9 @@ public abstract class DBTemplate extends JdbcTemplate {
 		page.calculatePage();
 		Sql sq = genPageSql(sql, page, params);
 		result.setPage(page);
-		result.setRows(queryForList(sq.getContent().toString(), sq.getParams()));
+		List<Object> list = new ArrayList<>(Arrays.asList(params));
+		list.addAll(sq.getParams());
+		result.setRows(queryForList(sq.getContent().toString(), list.toArray()));
 		return result;
 	}
 	

@@ -5,7 +5,9 @@ import com.github.tj123.db.operate.Sql;
 import com.github.tj123.db.operate.UpdateSql;
 import com.github.tj123.db.operate.WhereEquals;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Oracle操作对象
@@ -19,12 +21,10 @@ public class OracleTemplate extends DBTemplate {
 	
 	@Override
 	protected int findCount(String table, WhereEquals whereEquals) throws Exception {
-		return 0;
-	}
-	
-	@Override
-	public PageResult findPage(String sql, Page page, Object... params) throws Exception {
-		return null;
+		Sql oracle = whereEquals.getOracle();
+		return queryForObject(new StringBuilder("select count(1) from ").append(table).append(" where ")
+				.append(oracle.getContent()).toString(), oracle.getParams().toArray(), Integer.class);
+		
 	}
 	
 	@Override

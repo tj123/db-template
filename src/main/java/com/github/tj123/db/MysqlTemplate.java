@@ -60,7 +60,10 @@ public class MysqlTemplate extends DBTemplate {
 	
 	@Override
 	protected int findCount(String table, WhereEquals whereEquals) throws Exception {
-		return 0;
+		Sql mysql = whereEquals.getMysql();
+		return queryForObject(new StringBuilder("select count(1) from `").append(table).append("` where ")
+				.append(mysql.getContent()).toString(), mysql.getParams().toArray(), Integer.class);
+		
 	}
 	
 	
