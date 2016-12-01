@@ -15,7 +15,8 @@ public class PageResult extends HashMap<String, Object> {
 	
 	public PageResult setPage(Page page){
 		this.page = page;
-		put("total",page.getTotal());
+		put("total",page.getTotalRecords());
+		put("page",page.getPage());
 		return this;
 	}
 	

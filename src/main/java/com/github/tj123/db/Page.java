@@ -112,7 +112,11 @@ public class Page implements Serializable {
 	public void setTotalRecords(long totalRecords) {
 		this.totalRecords = totalRecords;
 	}
-	
+
+	public long getTotalRecords() {
+		return totalRecords;
+	}
+
 	public int getPage() {
 		return page;
 	}

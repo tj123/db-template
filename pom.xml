@@ -5,7 +5,7 @@
     <artifactId>db-template</artifactId>
     <packaging>jar</packaging>
     <version>1.0.0001</version>
-    <name>show</name>
+    <name>db-template</name>
 
     <properties>
         <!-- 文件拷贝时的编码 -->
