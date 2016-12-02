@@ -37,6 +37,15 @@
     </dependencies>
 
 
+    <!-- maven部署仓库配置 -->
+    <distributionManagement>
+        <repository>
+            <id>yuanben-release</id>
+            <name>Yuanben Release</name>
+            <url>http://192.168.1.5:8081/nexus/content/repositories/Yuanben-Release/</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <!--<finalName>db-template</finalName>-->
         <resources>
@@ -46,6 +55,11 @@
         </resources>
         <plugins>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.4</version>
+            </plugin>
             <!-- 指定jdk版本为1.7 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -65,6 +79,23 @@
                     <!-- 指定编码格式，否则在DOS下运行mvn命令时当发生文件资源copy时将使用系统默认使用GBK编码 -->
                     <encoding>UTF-8</encoding>
                 </configuration>
+            </plugin>
+
+            <!-- 要将源码放上去，需要加入这个插件 -->
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.0.1</version>
+                <configuration>
+                    <attach>true</attach>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
         </plugins>
